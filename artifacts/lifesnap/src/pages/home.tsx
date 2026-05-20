@@ -1,6 +1,11 @@
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { Mic, Keyboard, Paperclip, Brain, Activity, FileText, BookOpen, CheckSquare, Users, AlertTriangle, Terminal } from "lucide-react";
+import { motion, useAnimationFrame } from "framer-motion";
+import { useRef, useState } from "react";
+import {
+  Mic, Keyboard, Paperclip,
+  Brain, Activity, FileText, BookOpen, CheckSquare, Users,
+  AlertTriangle, Terminal, Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/context";
 import { ProcessInputMode } from "@workspace/api-client-react";
@@ -8,14 +13,189 @@ import { useToast } from "@/hooks/use-toast";
 
 const MODES: { value: ProcessInputMode; label: string }[] = [
   { value: "ai_recommended", label: "AI Recommended" },
-  { value: "life_admin", label: "Life Admin" },
-  { value: "health", label: "Health Appt Prep" },
-  { value: "legal", label: "Legal / Incident" },
-  { value: "business", label: "Business Build" },
-  { value: "legacy", label: "Legacy / Final Admin" },
-  { value: "diary", label: "Diary / Reflection" },
+  { value: "life_admin",     label: "Life Admin" },
+  { value: "health",         label: "Health Appt Prep" },
+  { value: "legal",          label: "Legal / Incident" },
+  { value: "business",       label: "Business Build" },
+  { value: "legacy",         label: "Legacy / Final Admin" },
+  { value: "diary",          label: "Diary / Reflection" },
 ];
 
+/* ── DayGlo colour constants ─────────────────────────────────────── */
+const PINK   = "hsl(330 100% 62%)";
+const PURPLE = "hsl(272 95% 68%)";
+const CYAN   = "hsl(188 100% 54%)";
+const ORANGE = "hsl(28 100% 58%)";
+const AMBER  = "hsl(45 100% 60%)";
+
+/* ── Particle layer ─────────────────────────────────────────────── */
+const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
+  id: i,
+  r: 85 + (i % 4) * 28,
+  size: i % 3 === 0 ? 4 : i % 2 === 0 ? 3 : 2,
+  speed: 0.00025 + (i % 5) * 0.00012,
+  offset: (i / 18) * Math.PI * 2,
+  color: [PINK, CYAN, PURPLE, ORANGE][i % 4],
+}));
+
+function OrbParticles() {
+  const [angles, setAngles] = useState(() => PARTICLES.map(p => p.offset));
+  useAnimationFrame((t) => {
+    setAngles(PARTICLES.map(p => p.offset + t * p.speed));
+  });
+  return (
+    <svg
+      className="absolute"
+      style={{ width: 320, height: 320, top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }}
+      viewBox="0 0 320 320"
+    >
+      {PARTICLES.map((p, i) => {
+        const cx = 160 + Math.cos(angles[i]) * p.r;
+        const cy = 160 + Math.sin(angles[i]) * p.r;
+        return (
+          <circle key={p.id} cx={cx} cy={cy} r={p.size} fill={p.color}
+            style={{ filter: `blur(${p.size > 3 ? 1.5 : 0.5}px)`, opacity: 0.9 }} />
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── The living orb ─────────────────────────────────────────────── */
+function LivingOrb() {
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
+
+      {/* Atmospheric outer halos */}
+      <div className="absolute inset-0" style={{
+        borderRadius: "50%",
+        background: `radial-gradient(circle, transparent 35%, ${PINK}08 55%, ${PURPLE}12 75%, transparent 100%)`,
+        animation: "pulse 3s ease-in-out infinite",
+      }} />
+      <div className="absolute" style={{
+        inset: -30, borderRadius: "50%",
+        background: `radial-gradient(circle, transparent 40%, ${CYAN}06 65%, ${PURPLE}08 85%, transparent 100%)`,
+        animation: "pulse 4s ease-in-out infinite 1s",
+      }} />
+
+      {/* Particle field */}
+      <OrbParticles />
+
+      {/* Ring 1 — outermost, cyan dashed, slow CW */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+        className="absolute"
+        style={{
+          inset: 10, borderRadius: "50%",
+          border: "2px dashed hsl(188 100% 54% / .7)",
+          boxShadow: "0 0 12px hsl(188 100% 54% / .5), inset 0 0 12px hsl(188 100% 54% / .2)",
+        }}
+      />
+
+      {/* Ring 2 — purple, half-arc, medium CCW */}
+      <motion.div
+        animate={{ rotate: -360 }}
+        transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
+        className="absolute"
+        style={{
+          inset: 26, borderRadius: "50%",
+          border: "3px solid transparent",
+          borderTopColor: "hsl(272 95% 68%)",
+          borderRightColor: "hsl(272 95% 68% / .15)",
+          borderBottomColor: "hsl(272 95% 68%)",
+          borderLeftColor: "hsl(272 95% 68% / .15)",
+          boxShadow: "0 0 16px hsl(272 95% 68% / .6), inset 0 0 10px hsl(272 95% 68% / .15)",
+        }}
+      />
+
+      {/* Ring 3 — hot pink, dotted, fast CW */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+        className="absolute"
+        style={{
+          inset: 44, borderRadius: "50%",
+          border: "3px dotted hsl(330 100% 62%)",
+          boxShadow: "0 0 18px hsl(330 100% 62% / .7), 0 0 40px hsl(330 100% 62% / .3), inset 0 0 14px hsl(330 100% 62% / .2)",
+        }}
+      />
+
+      {/* Ring 4 — orange, thin, medium CCW */}
+      <motion.div
+        animate={{ rotate: -360 }}
+        transition={{ duration: 13, repeat: Infinity, ease: "linear" }}
+        className="absolute"
+        style={{
+          inset: 60, borderRadius: "50%",
+          border: "2px solid transparent",
+          borderTopColor: "hsl(28 100% 58%)",
+          borderBottomColor: "hsl(28 100% 58% / .3)",
+          boxShadow: "0 0 12px hsl(28 100% 58% / .5)",
+        }}
+      />
+
+      {/* Core orb — layered radial, breathing */}
+      <motion.div
+        animate={{ scale: [1, 1.06, 1] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: 64, height: 64, borderRadius: "50%",
+          background: `radial-gradient(circle at 38% 35%, hsl(0 0% 100%) 0%, hsl(330 100% 78%) 20%, hsl(330 100% 62%) 45%, hsl(272 95% 52%) 75%, hsl(240 18% 10%) 100%)`,
+          boxShadow: `
+            0 0 0 2px hsl(330 100% 62% / .4),
+            0 0 20px hsl(330 100% 62%),
+            0 0 45px hsl(330 100% 62% / .7),
+            0 0 90px hsl(272 95% 68% / .5),
+            0 0 160px hsl(272 95% 68% / .25),
+            inset 0 -4px 12px hsl(272 95% 50% / .4),
+            inset 0 3px 8px hsl(0 0% 100% / .5)
+          `,
+        }}
+      />
+    </div>
+  );
+}
+
+/* ── Vertical card ──────────────────────────────────────────────── */
+interface VertCardProps {
+  cardClass: string;
+  iconClass: string;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  badge?: { label: string; color: string };
+  delay?: number;
+}
+function VertCard({ cardClass, iconClass, icon, title, desc, badge, delay = 0 }: VertCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay }}
+      className={`${cardClass} p-5 relative overflow-hidden`}
+    >
+      {badge && (
+        <span
+          className="absolute top-3 right-3 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest font-mono rounded-sm"
+          style={{ background: badge.color, color: "#000" }}
+        >
+          {badge.label}
+        </span>
+      )}
+      <div className="flex items-start gap-4">
+        <div className={`${iconClass} p-3 rounded-lg shrink-0`}>{icon}</div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-black text-white uppercase text-sm tracking-wide mb-1.5">{title}</h4>
+          <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Page ────────────────────────────────────────────────────────── */
 export default function Home() {
   const [, setLocation] = useLocation();
   const { selectedMode, setSelectedMode, setInputType } = useApp();
@@ -27,293 +207,329 @@ export default function Home() {
   };
 
   const handleUpload = () => {
-    toast({
-      title: "V2 Feature",
-      description: "File upload is coming in the next release.",
-    });
+    toast({ title: "Coming in V2", description: "File upload is in the next release." });
   };
 
   return (
-    <div className="flex-1 flex flex-col pb-12 overflow-y-auto">
-      
-      {/* HERO SECTION */}
-      <section className="px-6 pt-10 pb-8 flex flex-col items-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
+    <div className="flex-1 flex flex-col pb-16 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+
+      {/* ════ HERO ════ */}
+      <section className="relative flex flex-col items-center px-6 pt-10 pb-8 overflow-hidden">
+
+        {/* Living background atmosphere */}
+        <div className="atmo-bg">
+          <div className="atmo-blob" style={{ width: 340, height: 340, top: "-120px", left: "-80px", background: `radial-gradient(circle, ${PINK}, transparent 70%)` }} />
+          <div className="atmo-blob" style={{ width: 300, height: 300, top: "-80px", right: "-100px", background: `radial-gradient(circle, ${PURPLE}, transparent 70%)`, animationDelay: "3s" }} />
+          <div className="atmo-blob" style={{ width: 260, height: 260, top: "160px", left: "50%", transform: "translateX(-50%)", background: `radial-gradient(circle, ${CYAN}, transparent 70%)`, animationDelay: "6s", opacity: 0.1 }} />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative w-40 h-40 mb-8 flex items-center justify-center"
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="relative z-10 mb-6"
         >
-          {/* Outer Ring */}
-          <motion.div 
-            animate={{ rotate: 360 }} 
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-full border-2 border-dashed border-accent opacity-50 glow-cyan"
-          />
-          {/* Mid Ring */}
-          <motion.div 
-            animate={{ rotate: -360 }} 
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-4 rounded-full border-2 border-t-secondary border-r-transparent border-b-secondary border-l-transparent opacity-70 glow-purple"
-          />
-          {/* Inner Ring */}
-          <motion.div 
-            animate={{ rotate: 360 }} 
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-8 rounded-full border-4 border-dotted border-primary opacity-90 glow-pink"
-          />
-          {/* Core Orb */}
-          <div className="w-12 h-12 rounded-full bg-white shadow-[0_0_30px_rgba(255,255,255,0.8)] animate-pulse" />
+          <LivingOrb />
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-center space-y-3 w-full"
+          transition={{ delay: 0.3 }}
+          className="relative z-10 text-center space-y-3 w-full"
         >
-          <h1 className="text-5xl font-bold tracking-tighter text-white font-sans uppercase">LifeSnap</h1>
-          <h2 className="text-lg text-accent tracking-wide font-medium">AI Case Intelligence for Real Life</h2>
-          <div className="inline-block mt-2 px-3 py-1 rounded-sm border border-amber bg-amber/10 text-amber text-[10px] uppercase tracking-widest font-mono font-bold">
+          <h1
+            className="text-6xl font-black uppercase tracking-tighter text-white"
+            style={{ textShadow: "0 0 30px hsl(0 0% 100% / .7), 0 0 70px hsl(330 100% 62% / .4), 0 0 120px hsl(272 95% 68% / .25)" }}
+          >
+            LifeSnap
+          </h1>
+          <p
+            className="text-lg font-bold uppercase tracking-widest"
+            style={{ color: CYAN, textShadow: "0 0 12px hsl(188 100% 54%), 0 0 35px hsl(188 100% 54% / .6)" }}
+          >
+            AI Case Intelligence for Real Life
+          </p>
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 mt-1 text-[10px] font-black uppercase tracking-widest font-mono rounded-sm"
+            style={{
+              background: `linear-gradient(90deg, hsl(28 100% 58% / .18), hsl(55 100% 58% / .12))`,
+              border: `1.5px solid hsl(28 100% 58% / .7)`,
+              color: ORANGE,
+              boxShadow: `0 0 10px hsl(28 100% 58% / .3), 0 0 25px hsl(28 100% 58% / .15)`,
+              textShadow: `0 0 8px hsl(28 100% 58%)`,
+            }}
+          >
+            <Zap className="w-3 h-3" />
             DAAI007 — Founder Beta
           </div>
         </motion.div>
 
-        {/* Action Buttons */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        {/* ── Action buttons ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="w-full flex flex-col gap-3 mt-10"
+          transition={{ delay: 0.5 }}
+          className="relative z-10 w-full flex flex-col gap-3 mt-10"
         >
-          <Button 
-            size="lg" 
-            className="w-full h-16 text-lg font-bold rounded-none bg-primary/10 hover:bg-primary/20 text-white border border-primary glow-pink justify-start px-6 uppercase tracking-wider"
+          <button
+            className="w-full h-16 flex items-center px-6 gap-4 font-black uppercase tracking-wider text-base btn-dayglo-pink rounded-lg"
             onClick={() => handleAction("talk")}
             data-testid="button-talk"
           >
-            <Mic className="w-5 h-5 text-primary mr-4" />
+            <Mic className="w-6 h-6 shrink-0" />
             Talk it out
-          </Button>
-          <Button 
-            size="lg" 
-            className="w-full h-16 text-lg font-bold rounded-none bg-accent/5 hover:bg-accent/10 text-white border border-accent glow-cyan justify-start px-6 uppercase tracking-wider"
+          </button>
+          <button
+            className="w-full h-16 flex items-center px-6 gap-4 font-black uppercase tracking-wider text-sm btn-dayglo-cyan rounded-lg"
             onClick={() => handleAction("type")}
             data-testid="button-type"
           >
-            <Keyboard className="w-5 h-5 text-accent mr-4" />
+            <Keyboard className="w-6 h-6 shrink-0" />
             Type it out
-          </Button>
-          <Button 
-            size="lg" 
-            variant="ghost"
-            className="w-full h-16 text-sm font-medium rounded-none bg-transparent hover:bg-muted text-muted-foreground border border-border justify-start px-6 uppercase tracking-wider"
+          </button>
+          <button
+            className="w-full h-14 flex items-center px-6 gap-4 font-bold uppercase tracking-wider text-sm text-muted-foreground rounded-lg transition-colors hover:text-white"
+            style={{ background: "hsl(240 14% 8%)", border: "2px solid hsl(240 10% 18%)" }}
             onClick={handleUpload}
             data-testid="button-upload"
           >
-            <Paperclip className="w-5 h-5 mr-4 opacity-50" />
+            <Paperclip className="w-5 h-5 shrink-0 opacity-50" />
             Upload file (V2)
-          </Button>
+          </button>
         </motion.div>
 
-        {/* Mode Selector */}
-        <motion.div 
+        {/* ── Mode chips ── */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="w-full mt-8"
+          transition={{ delay: 0.65 }}
+          className="relative z-10 w-full mt-6"
         >
-          <div className="flex overflow-x-auto pb-4 gap-2 scrollbar-hide snap-x" style={{ scrollbarWidth: "none" }}>
-            {MODES.map((mode) => (
-              <button
-                key={mode.value}
-                onClick={() => setSelectedMode(mode.value)}
-                className={`snap-center shrink-0 whitespace-nowrap px-4 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition-all border ${
-                  selectedMode === mode.value
-                    ? "bg-primary text-white border-primary glow-pink"
-                    : "bg-card text-muted-foreground hover:text-white border-border hover:border-muted-foreground glass-panel"
-                }`}
-                data-testid={`mode-${mode.value}`}
-              >
-                {mode.label}
-              </button>
-            ))}
+          <div className="flex overflow-x-auto pb-2 gap-2" style={{ scrollbarWidth: "none" }}>
+            {MODES.map((mode) => {
+              const active = selectedMode === mode.value;
+              return (
+                <button
+                  key={mode.value}
+                  onClick={() => setSelectedMode(mode.value)}
+                  className="snap-center shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all"
+                  style={active ? {
+                    background: `linear-gradient(135deg, hsl(330 100% 62% / .3), hsl(272 95% 68% / .25))`,
+                    border: "2px solid hsl(330 100% 62% / .8)",
+                    color: "#fff",
+                    boxShadow: "0 0 14px hsl(330 100% 62% / .5), 0 0 30px hsl(330 100% 62% / .25)",
+                    textShadow: "0 0 8px hsl(330 100% 62% / .8)",
+                  } : {
+                    background: "hsl(240 14% 9%)",
+                    border: "2px solid hsl(240 10% 18%)",
+                    color: "hsl(240 8% 55%)",
+                  }}
+                  data-testid={`mode-${mode.value}`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
           </div>
         </motion.div>
       </section>
 
-      {/* FOUNDER ACCESS SECTION */}
+      <div className="section-divider mx-6" />
+
+      {/* ════ FOUNDER ACCESS ════ */}
       <section className="px-6 py-10">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="glass-panel border-primary p-6 relative overflow-hidden group"
+          className="card-pink p-6 relative overflow-hidden rounded-xl"
         >
-          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
-          <div className="relative z-10 flex flex-col items-center text-center">
-            <h3 className="text-2xl font-bold text-white uppercase tracking-wider mb-2">Founder's Access</h3>
-            <div className="text-4xl font-black text-primary mb-4 glow-pink">$39<span className="text-lg text-primary/70">/month</span></div>
-            <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
-              Lock in lifetime founder pricing before public launch. Limited to 100 members.
+          <div className="absolute inset-0 scan-line opacity-40" />
+          <div className="absolute top-0 left-0 right-0 h-px"
+            style={{ background: "linear-gradient(90deg, transparent, hsl(330 100% 80% / .6), transparent)" }} />
+
+          <div className="relative z-10 text-center">
+            <p
+              className="text-[10px] font-black uppercase tracking-widest font-mono mb-3"
+              style={{ color: PINK, textShadow: `0 0 8px ${PINK}` }}
+            >
+              Limited to 100 Members
             </p>
-            <ul className="text-left text-sm space-y-3 mb-8 text-white/80 font-medium">
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-primary rounded-full glow-pink" /> AI Case Mapping</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-primary rounded-full glow-pink" /> Skin-Body Timeline Report</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-primary rounded-full glow-pink" /> Doctor-Facing Report Export</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-primary rounded-full glow-pink" /> Priority Support</li>
+            <h3
+              className="text-3xl font-black uppercase tracking-wide text-white mb-1"
+              style={{ textShadow: "0 0 20px hsl(0 0% 100% / .5), 0 0 50px hsl(330 100% 62% / .3)" }}
+            >
+              Founder's Access
+            </h3>
+            <div
+              className="text-5xl font-black my-4"
+              style={{ color: PINK, textShadow: `0 0 16px ${PINK}, 0 0 40px hsl(330 100% 62% / .6), 0 0 80px hsl(330 100% 62% / .3)` }}
+            >
+              $39<span className="text-xl opacity-60">/month</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Lock in founder pricing forever before public launch.
+            </p>
+            <ul className="text-left text-sm space-y-3 mb-8">
+              {["AI Case Mapping", "Skin-Body Timeline Report", "Doctor-Facing Report Export", "Priority Support"].map((item) => (
+                <li key={item} className="flex items-center gap-3 text-white/90">
+                  <span className="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: PINK, boxShadow: `0 0 8px ${PINK}, 0 0 20px hsl(330 100% 62% / .5)` }} />
+                  {item}
+                </li>
+              ))}
             </ul>
-            <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-none h-14 font-bold tracking-widest uppercase glow-pink text-sm">
+            <button
+              className="w-full h-14 font-black uppercase tracking-widest text-sm btn-dayglo-pink rounded-lg"
+            >
               Join the Founder Pilot
-            </Button>
+            </button>
           </div>
         </motion.div>
       </section>
 
-      {/* VERTICALS SECTION */}
+      <div className="section-divider mx-6" />
+
+      {/* ════ VERTICALS ════ */}
       <section className="px-6 py-10">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-widest text-center">Everything on one intelligence platform</h3>
-        <div className="grid grid-cols-1 gap-4">
-          <div className="glass-panel p-5 border-primary/50 relative overflow-hidden group hover:border-primary transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary/10 rounded-sm border border-primary/30">
-                <Brain className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">AI Case Mapping Assistant</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Describe any situation. Get a structured case map, timeline, and action plan in seconds.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-accent/50 relative overflow-hidden group hover:border-accent transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-accent/10 rounded-sm border border-accent/30">
-                <Activity className="w-6 h-6 text-accent" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">Skin-Body Timeline Report</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Track symptoms, flares, treatments, and patterns over time. Build your evidence trail.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-secondary/50 relative overflow-hidden group hover:border-secondary transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-secondary/10 rounded-sm border border-secondary/30">
-                <FileText className="w-6 h-6 text-secondary" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">Doctor-Facing Report Tools</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Generate clinical-grade summaries ready to share with your GP, specialist, or solicitor.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-amber/50 relative overflow-hidden group hover:border-amber transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-amber/10 rounded-sm border border-amber/30">
-                <BookOpen className="w-6 h-6 text-amber" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">The Book</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Pre-order: The LifeSnap Method — a complete guide to documenting your health journey.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-accent/30 relative overflow-hidden flex flex-col">
-            <div className="absolute top-3 right-3 px-2 py-0.5 bg-accent text-[9px] font-bold uppercase text-background tracking-widest">Free</div>
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-accent/5 rounded-sm border border-accent/20">
-                <CheckSquare className="w-6 h-6 text-accent/70" />
-              </div>
-              <div className="flex-1 pr-8">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">Evidence Checklist</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Free lead magnet. Download the LifeSnap Evidence Starter Kit.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-secondary/30 relative overflow-hidden flex flex-col">
-            <div className="absolute top-3 right-3 px-2 py-0.5 bg-secondary/20 text-secondary text-[9px] font-bold uppercase border border-secondary/30 tracking-widest">Coming Soon</div>
-            <div className="flex items-start gap-4 opacity-70">
-              <div className="p-3 bg-secondary/5 rounded-sm border border-secondary/20">
-                <Users className="w-6 h-6 text-secondary/70" />
-              </div>
-              <div className="flex-1 pr-16">
-                <h4 className="font-bold text-white mb-1 uppercase text-sm tracking-wide">Community & Courses</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">Peer support, live sessions, and structured learning.</p>
-              </div>
-            </div>
-          </div>
+        <motion.h3
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-xl font-black uppercase tracking-widest text-center mb-8 text-white"
+          style={{ textShadow: "0 0 20px hsl(0 0% 100% / .4), 0 0 50px hsl(272 95% 68% / .25)" }}
+        >
+          One Intelligence Platform
+        </motion.h3>
+        <div className="flex flex-col gap-4">
+          <VertCard delay={0}   cardClass="card-pink"   iconClass="icon-wrap-pink"
+            icon={<Brain className="w-6 h-6" style={{ color: PINK }} />}
+            title="AI Case Mapping Assistant"
+            desc="Describe any situation. Instant structured case map, timeline, and action plan." />
+          <VertCard delay={0.05} cardClass="card-cyan"  iconClass="icon-wrap-cyan"
+            icon={<Activity className="w-6 h-6" style={{ color: CYAN }} />}
+            title="Skin-Body Timeline Report"
+            desc="Track symptoms, flares, treatments, and patterns. Build your evidence trail." />
+          <VertCard delay={0.1} cardClass="card-purple" iconClass="icon-wrap-purple"
+            icon={<FileText className="w-6 h-6" style={{ color: PURPLE }} />}
+            title="Doctor-Facing Report Tools"
+            desc="Clinical-grade summaries ready for your GP, specialist, or solicitor." />
+          <VertCard delay={0.15} cardClass="card-orange" iconClass="icon-wrap-orange"
+            icon={<BookOpen className="w-6 h-6" style={{ color: ORANGE }} />}
+            title="The Book"
+            desc="Pre-order: The LifeSnap Method — a complete guide to health documentation." />
+          <VertCard delay={0.2} cardClass="card-cyan"   iconClass="icon-wrap-cyan"
+            icon={<CheckSquare className="w-6 h-6" style={{ color: CYAN }} />}
+            title="Evidence Checklist"
+            desc="Free lead magnet. Download the LifeSnap Evidence Starter Kit."
+            badge={{ label: "Free", color: CYAN }} />
+          <VertCard delay={0.25} cardClass="card-purple" iconClass="icon-wrap-purple"
+            icon={<Users className="w-6 h-6" style={{ color: PURPLE }} />}
+            title="Community & Courses"
+            desc="Peer support, live sessions, and structured learning."
+            badge={{ label: "Coming Soon", color: PURPLE }} />
         </div>
       </section>
 
-      {/* AI AGENT CONSOLE SHOWCASE */}
+      <div className="section-divider mx-6" />
+
+      {/* ════ AI CONSOLE SHOWCASE ════ */}
       <section className="px-6 py-10">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-widest text-center">Your AI produces this, instantly</h3>
-        
-        <div className="glass-panel border-accent/60 relative overflow-hidden shadow-[0_0_30px_rgba(0,212,255,0.1)]">
-          {/* Header Bar */}
-          <div className="bg-accent/10 border-b border-accent/30 p-2 flex items-center gap-2 font-mono">
-            <Terminal className="w-4 h-4 text-accent" />
-            <div className="text-[10px] text-accent font-bold tracking-widest flex items-center">
+        <motion.h3
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-xl font-black uppercase tracking-widest text-center mb-6 text-white"
+          style={{ textShadow: "0 0 20px hsl(0 0% 100% / .4), 0 0 50px hsl(188 100% 54% / .25)" }}
+        >
+          Your AI produces this, instantly
+        </motion.h3>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="card-cyan relative overflow-hidden rounded-xl"
+        >
+          <div className="absolute inset-0 scan-line opacity-60" />
+
+          {/* Terminal header */}
+          <div className="relative z-10 px-4 py-3 flex items-center gap-2.5 border-b-2"
+            style={{ borderColor: `${CYAN}50`, background: `hsl(188 40% 8% / .8)` }}>
+            <Terminal className="w-4 h-4" style={{ color: CYAN }} />
+            <span className="font-black text-[10px] uppercase tracking-widest font-mono"
+              style={{ color: CYAN, textShadow: `0 0 8px ${CYAN}` }}>
               LIFESNAP // CASE INTELLIGENCE ACTIVE
-              <span className="inline-block w-2 h-3 bg-accent ml-1 animate-pulse" />
-            </div>
+            </span>
+            <span className="inline-block w-2 h-3.5 ml-1 rounded-sm animate-pulse"
+              style={{ background: CYAN, boxShadow: `0 0 8px ${CYAN}` }} />
           </div>
-          
-          <div className="p-4 space-y-4 relative">
-            <div className="absolute inset-0 scan-line pointer-events-none z-10" />
-            
-            {/* Mock Card 1 */}
-            <div className="bg-background/80 border border-border p-3 relative z-0">
-              <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider mb-2 border-b border-border/50 pb-1">Situation Summary</div>
-              <div className="space-y-2">
-                <div className="h-2 bg-muted/60 rounded w-full" />
-                <div className="h-2 bg-muted/60 rounded w-4/5" />
+
+          <div className="relative z-10 p-4 space-y-3">
+            {/* Mock summary card */}
+            <div className="p-3 rounded-lg"
+              style={{ background: "hsl(240 14% 7% / .9)", border: "1px solid hsl(240 10% 20%)" }}>
+              <div className="text-[10px] uppercase tracking-wider font-mono mb-2 pb-1 border-b border-border/40"
+                style={{ color: CYAN }}>Situation Summary</div>
+              <div className="space-y-1.5">
+                <div className="h-2 rounded bg-muted/70 w-full" />
+                <div className="h-2 rounded bg-muted/50 w-4/5" />
               </div>
             </div>
-
-            {/* Mock Card 2 */}
-            <div className="bg-background/80 border border-border p-3 relative z-0">
-              <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider mb-2 border-b border-border/50 pb-1">Next 3 Actions</div>
-              <div className="space-y-2 font-mono text-[10px] text-white/70">
-                <div className="flex gap-2"><span className="text-accent">1.</span> <div className="h-2 bg-muted/60 rounded w-3/4 mt-1" /></div>
-                <div className="flex gap-2"><span className="text-accent">2.</span> <div className="h-2 bg-muted/60 rounded w-5/6 mt-1" /></div>
-                <div className="flex gap-2"><span className="text-accent">3.</span> <div className="h-2 bg-muted/60 rounded w-2/3 mt-1" /></div>
-              </div>
+            {/* Mock actions card */}
+            <div className="p-3 rounded-lg"
+              style={{ background: "hsl(240 14% 7% / .9)", border: "1px solid hsl(240 10% 20%)" }}>
+              <div className="text-[10px] uppercase tracking-wider font-mono mb-2 pb-1 border-b border-border/40"
+                style={{ color: PINK }}>Next 3 Actions</div>
+              {["1.", "2.", "3."].map((n) => (
+                <div key={n} className="flex gap-2 mb-1.5">
+                  <span className="text-[10px] font-mono font-black" style={{ color: PINK }}>{n}</span>
+                  <div className="h-2 rounded bg-muted/60 flex-1 mt-0.5" />
+                </div>
+              ))}
             </div>
-
-            {/* Mock Card 3 */}
-            <div className="bg-amber/5 border border-amber/20 p-3 relative z-0">
-              <div className="text-[10px] text-amber font-mono uppercase tracking-wider mb-2 border-b border-amber/20 pb-1 flex items-center gap-1">
+            {/* Mock risk card */}
+            <div className="p-3 rounded-lg"
+              style={{ background: "hsl(28 30% 6% / .9)", border: `1px solid hsl(28 100% 58% / .35)` }}>
+              <div className="text-[10px] uppercase tracking-wider font-mono mb-2 pb-1 border-b flex items-center gap-1"
+                style={{ color: ORANGE, borderColor: `${ORANGE}30` }}>
                 <AlertTriangle className="w-3 h-3" /> Risk & Deadline Flags
               </div>
-              <div className="space-y-2 font-mono text-[10px] text-amber/80">
-                <div className="flex gap-2"><span className="text-amber">!</span> <div className="h-2 bg-amber/20 rounded w-full mt-1" /></div>
-                <div className="flex gap-2"><span className="text-amber">!</span> <div className="h-2 bg-amber/20 rounded w-4/5 mt-1" /></div>
+              <div className="space-y-1.5">
+                <div className="flex gap-2"><span className="text-[10px] font-black" style={{ color: ORANGE }}>!</span><div className="h-2 rounded flex-1 mt-0.5" style={{ background: `hsl(28 100% 58% / .25)` }} /></div>
+                <div className="flex gap-2"><span className="text-[10px] font-black" style={{ color: ORANGE }}>!</span><div className="h-2 rounded w-4/5 mt-0.5" style={{ background: `hsl(28 100% 58% / .2)` }} /></div>
               </div>
             </div>
           </div>
-        </div>
-        <p className="text-center text-xs text-muted-foreground mt-4 font-mono uppercase tracking-widest">
+        </motion.div>
+        <p className="text-center text-[10px] text-muted-foreground mt-4 font-mono uppercase tracking-widest">
           Tap Talk or Type above to run your own case
         </p>
       </section>
 
-      {/* SAFETY / DISCLAIMERS */}
-      <section className="px-6 pb-12 pt-4">
-        <div className="glass-panel border-amber/40 p-4 border-l-4 border-l-amber relative">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-amber" />
-            <h4 className="font-bold text-amber uppercase text-sm tracking-wider">Important Boundaries</h4>
+      <div className="section-divider mx-6" />
+
+      {/* ════ SAFETY ════ */}
+      <section className="px-6 pt-8 pb-14">
+        <div className="card-amber relative overflow-hidden rounded-xl p-5">
+          <div className="absolute top-0 left-0 right-0 h-0.5"
+            style={{ background: `linear-gradient(90deg, transparent, ${AMBER}, transparent)` }} />
+          <div className="flex items-center gap-2.5 mb-3">
+            <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: AMBER, filter: `drop-shadow(0 0 6px ${AMBER})` }} />
+            <h4
+              className="font-black uppercase text-sm tracking-wider"
+              style={{ color: AMBER, textShadow: `0 0 10px ${AMBER}` }}
+            >
+              Important Boundaries
+            </h4>
           </div>
-          <p className="text-xs text-white/80 leading-relaxed mb-3">
-            LifeSnap is an AI documentation and organisation tool. It is NOT a substitute for medical, legal, financial, psychological, or emergency professional advice. Always consult a qualified professional. In an emergency, call 999 or 112.
+          <p className="text-xs text-white/85 leading-relaxed mb-3">
+            LifeSnap is an AI documentation and organisation tool. It is NOT a substitute
+            for medical, legal, financial, psychological, or emergency professional advice.
+            Always consult a qualified professional. In an emergency, call 999 or 112.
           </p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             No raw audio or video stored. Text-first storage only.
           </p>
         </div>
