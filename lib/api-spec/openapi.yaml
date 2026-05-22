@@ -233,7 +233,7 @@ components:
 
     ProcessResult:
       type: object
-      required: [diaryEntry, snapshot, mode, disclaimer]
+      required: [diaryEntry, snapshot, mode]
       properties:
         diaryEntry:
           $ref: "#/components/schemas/DiaryEntry"
@@ -241,12 +241,6 @@ components:
           $ref: "#/components/schemas/SnapshotData"
         mode:
           type: string
-        safetyMode:
-          type: boolean
-          description: True when safety-first handling stopped normal AI processing
-        disclaimer:
-          type: string
-          description: Safety and professional-support boundary text
 
     SnapshotInput:
       type: object

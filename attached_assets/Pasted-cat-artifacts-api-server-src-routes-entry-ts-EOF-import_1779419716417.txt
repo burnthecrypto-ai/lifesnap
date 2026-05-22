@@ -1,0 +1,89 @@
+cat > artifacts/api-server/src/routes/entry.ts << 'EOF'
+import { Router } from "express";
+import type { Request, Response } from "express";
+import { db } from "../db";
+import { entries, medicalTimelineEvents, tasks, reports } from "../../../lib/db/schema";
+import { detectSafety } from "../lib/safety";
+import { processTranscript } from "../lib/transcript-processor";
+import { cheapComplete, expensiveComplete, PROMPTS } from "../lib/ai-provider";
+import { eq, and, desc } from "drizzle-orm";
+
+export const entryRouter = Router();
+export const reportRouter = Router();
+
+const DISCLAIMER = "This is not medical advice, diagnosis, treatment, or emergency care. Organisation tool only.";
+
+entryRouter.post("/entry", async (req: Request, res: Response) => {
+  const { transcript, source = "text", userId } = req.body as { transcript:string; source?:"voice"|"text"; userId:string };
+  if (!transcript?.trim()) return res.status(400).json({ error: "transcript required" });
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const safety = detectSafety(transcript);
+  if (safety.triggered) {
+    await db.insert(entries).values({ userId, rawTranscript: transcript.substring(0,500), cleanedEntry: transcript.substring(0,500), source, isFlagged: true, isSafetyEntry: true, consentStatus: "private" });
+    return res.json({ safetyMode: true, message: safety.response?.message });
+  }
+  const processed = processTranscript(transcript);
+  let cleanedEntry = processed.cleanedEntry;
+  let category = processed.category;
+  if (processed.needsAIFallback) {
+    try {
+      const r = await cheapComplete(processed.cleanedEntry, PROMPTS.CLEANUP);
+      if (r.text) cleanedEntry = r.text;
+      const c = await cheapComplete(cleanedEntry, PROMPTS.CLASSIFY);
+      const valid = ["diary","task","admin","medical","legal","finance","legacy"];
+      if (valid.includes(c.text.trim())) category = c.text.trim() as typeof category;
+    } catch { /* non-fatal */ }
+  }
+  const [saved] = await db.insert(entries).values({ userId, rawTranscript: processed.rawTranscript, cleanedEntry, category, source, tags: processed.extractedFields.tags, needsAIFallback: processed.needsAIFallback, classifierConfidence: String(processed.extractedFields.classifierConfidence), consentStatus: "diary" }).returning();
+  return res.status(201).json({ entryId: saved.id, cleanedEntry, category, isMedical: processed.extractedFields.isMedical, medicalKeywordsFound: processed.extractedFields.medicalKeywordsFound, safetyMode: false });
+});
+
+entryRouter.get("/entry/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { userId } = req.query as { userId: string };
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const [entry] = await db.select().from(entries).where(and(eq(entries.id, id), eq(entries.userId, userId))).limit(1);
+  if (!entry) return res.status(404).json({ error: "Not found" });
+  return res.json(entry);
+});
+
+entryRouter.get("/entries", async (req: Request, res: Response) => {
+  const { userId, limit = "20", offset = "0" } = req.query as { userId:string; limit?:string; offset?:string };
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const result = await db.select().from(entries).where(eq(entries.userId, userId)).orderBy(desc(entries.createdAt)).limit(Math.min(parseInt(limit), 100)).offset(parseInt(offset));
+  return res.json({ entries: result, count: result.length });
+});
+
+entryRouter.post("/entry/:id/medical-confirm", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { userId, consent, userReviewedFields } = req.body as { userId:string; consent:boolean; userReviewedFields?: Record<string,string> };
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  if (consent !== true) return res.status(400).json({ error: "Explicit consent required", disclaimer: DISCLAIMER });
+  const [entry] = await db.select().from(entries).where(and(eq(entries.id, id), eq(entries.userId, userId))).limit(1);
+  if (!entry) return res.status(404).json({ error: "Not found" });
+  let extracted: Record<string,string|null> = {};
+  try { const r = await cheapComplete(entry.cleanedEntry, PROMPTS.MEDICAL_EXTRACT, 400); extracted = JSON.parse(r.text); } catch { /* non-fatal */ }
+  const [event] = await db.insert(medicalTimelineEvents).values({ entryId: id, userId, consentConfirmed: true, symptom: userReviewedFields?.symptom ?? extracted.symptom ?? null, bodyArea: userReviewedFields?.bodyArea ?? extracted.body_area ?? null, severity: userReviewedFields?.severity ?? extracted.severity ?? null, medication: userReviewedFields?.medication ?? extracted.medication ?? null, doctorClinic: userReviewedFields?.doctorClinic ?? extracted.doctor_clinic ?? null, testResults: userReviewedFields?.testResults ?? extracted.tests_results ?? null, followUpQuestions: userReviewedFields?.followUpQuestions ?? extracted.follow_up_questions ?? null }).returning({ id: medicalTimelineEvents.id });
+  return res.status(201).json({ timelineEventId: event.id, disclaimer: DISCLAIMER });
+});
+
+reportRouter.post("/report/generate", async (req: Request, res: Response) => {
+  const { userId, reportType, dateRangeFrom, dateRangeTo } = req.body as { userId:string; reportType:string; dateRangeFrom?:string; dateRangeTo?:string };
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  if (!reportType) return res.status(400).json({ error: "reportType required" });
+  const [pending] = await db.insert(reports).values({ userId, reportType: reportType as any, status: "generating", dateRangeFrom: dateRangeFrom || null, dateRangeTo: dateRangeTo || null }).returning({ id: reports.id });
+  const userEntries = await db.select().from(entries).where(eq(entries.userId, userId)).orderBy(desc(entries.createdAt)).limit(50);
+  const timeline = await db.select().from(medicalTimelineEvents).where(and(eq(medicalTimelineEvents.userId, userId), eq(medicalTimelineEvents.consentConfirmed, true))).orderBy(desc(medicalTimelineEvents.createdAt));
+  const entrySummary = userEntries.map(e => `[${e.createdAt}] (${e.category}) ${e.cleanedEntry}`).join("\n\n");
+  const timelineSummary = timeline.map(t => [t.eventDate, t.symptom, t.bodyArea, t.medication, t.doctorClinic].filter(Boolean).join(" | ")).join("\n");
+  const prompt = `Report: ${reportType}\n\nEntries:\n${entrySummary}\n\nMedical timeline:\n${timelineSummary || "None"}`;
+  try {
+    const r = await expensiveComplete(prompt, PROMPTS.REPORT, 1500);
+    await db.update(reports).set({ status: "complete", contentText: r.text }).where(eq(reports.id, pending.id));
+    return res.status(201).json({ reportId: pending.id, content: r.text, disclaimer: "For personal review only. Not medical advice." });
+  } catch {
+    await db.update(reports).set({ status: "failed" }).where(eq(reports.id, pending.id));
+    return res.status(500).json({ error: "Report generation failed." });
+  }
+});
+EOF

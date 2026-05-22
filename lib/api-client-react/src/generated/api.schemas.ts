@@ -65,10 +65,6 @@ export interface ProcessResult {
   diaryEntry: DiaryEntry;
   snapshot: SnapshotData;
   mode: string;
-  /** True when safety-first handling stopped normal AI processing */
-  safetyMode?: boolean;
-  /** Safety and professional-support boundary text */
-  disclaimer: string;
 }
 
 export interface SnapshotInput {
@@ -90,3 +86,4 @@ export interface Snapshot {
   snapshot: SnapshotData;
   createdAt: string;
 }
+

@@ -47,16 +47,6 @@ export function Layout({ children }: { children: ReactNode }) {
               >
                 LifeSnap
               </span>
-              <span
-                className="text-[10px] font-black uppercase tracking-widest font-mono"
-                style={{
-                  color: "hsl(188 100% 62%)",
-                  textShadow:
-                    "0 0 10px hsl(188 100% 54%), 0 0 28px hsl(188 100% 54% / .6)",
-                }}
-              >
-                DAAI007
-              </span>
             </div>
           </Link>
 

@@ -1,0 +1,36 @@
+https://replit.com/@burnthecrypto/Life-Command-Center
+https://life-command-center--burnthecrypto.replit.app
+https://replit.com/join/pjdidszuke-burnthecrypto
+current branch: main (from Replit workspace via replId b574d42c-f6f5-4e07-b01c-b772d2fc7bc3)
+latest commit hash: 9bad4ec (Replit), while GitHub origin/main is 474d435 locally
+commands run:
+Replit read-only: git branch --show-current, git rev-parse --short HEAD, git status --short --branch, git status --porcelain
+Replit attempted mutating: git pull origin main, pnpm run typecheck, PORT=5000 pnpm --filter @workspace/api-server run build (all blocked by Plan mode)
+Live endpoint checks:
+GET https://life-command-center--burnthecrypto.replit.app/api/healthz
+POST https://life-command-center--burnthecrypto.replit.app/api/process (normal input)
+POST https://life-command-center--burnthecrypto.replit.app/api/process (safety input: "I want to hurt myself")
+GET https://life-command-center--burnthecrypto.replit.app/api/entry
+typecheck result: BLOCKED in Replit Plan mode (not executed)
+build result: BLOCKED in Replit Plan mode (not executed)
+healthz result: 200 with {"status":"ok"}
+normal /api/process result: 200, returns diaryEntry, snapshot, mode; does not include safetyMode or disclaimer
+safety /api/process result: 200, returns diaryEntry, snapshot, mode; does not include safetyMode or disclaimer
+whether /api/entry exists: does not exist (GET /api/entry -> 404 Cannot GET /api/entry; Replit also reports no entry.ts)
+blockers:
+Replit workspace agent is in Plan mode, which blocks git pull, typecheck, and build
+Replit HEAD (9bad4ec) is behind GitHub origin/main (474d435), so safety-first patch behavior is not present in live runtime responses
+next required action:
+Switch that Replit agent session from Plan to Build mode via the mode toggle, then I can immediately run the exact blocked commands and complete the verification pass end-to-end.
+
+
+
+
+11:55 PM
+edit accsess link
+11:56 PM
+
+
+Access link (edited):
+
+https://replit.com/join/pjdidszuke-burnthecrypto

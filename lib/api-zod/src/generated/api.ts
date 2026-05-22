@@ -49,9 +49,7 @@ export const ProcessInputResponse = zod.object({
   "tags": zod.array(zod.string()),
   "shareableSummary": zod.string()
 }),
-  "mode": zod.string(),
-  "safetyMode": zod.boolean().describe('True when safety-first handling stopped normal AI processing').optional(),
-  "disclaimer": zod.string().describe('Safety and professional-support boundary text')
+  "mode": zod.string()
 })
 
 
@@ -166,3 +164,5 @@ export const GetSnapshotResponse = zod.object({
 export const DeleteSnapshotParams = zod.object({
   "id": zod.coerce.number()
 })
+
+

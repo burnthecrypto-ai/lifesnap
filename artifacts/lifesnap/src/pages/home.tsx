@@ -261,7 +261,7 @@ export default function Home() {
             }}
           >
             <Zap className="w-3 h-3" />
-            DAAI007 — Founder Beta
+            Founder Beta
           </div>
         </motion.div>
 
